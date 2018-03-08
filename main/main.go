@@ -60,31 +60,76 @@ func NewChord(i Instrument, namesToPositions map[string]int32) Chord {
 	return c
 }
 
-func printChordAsTab(c Chord) {
-	for _, s := range c.instrument.strings {
-		var displayValue string
-		fret, ok := c.positions[s]
-		if ok {
-			displayValue = fmt.Sprintf("%d", fret)
-		} else {
-			displayValue = "-"
+// BlankChord returns a Chord with no positions, representing a pause
+func BlankChord(i Instrument) Chord {
+	return NewChord(i, map[string]int32{})
+}
+
+// Measure is a series of Chords that should be displayed together
+type Measure struct {
+	chords []Chord
+}
+
+// printMeasure writes a multi-column measure to stdout
+func printMeasure(m Measure) {
+	if len(m.chords) == 0 {
+		return
+	}
+
+	// Add a blank chord between each chord in the measure
+	blank := BlankChord(m.chords[0].instrument)
+	chords := []Chord{blank}
+	for _, c := range m.chords {
+		chords = append(chords, c)
+		chords = append(chords, blank)
+	}
+
+	// Transform list of Chords [E, Am, C#] into a map of
+	// each string to its fret position sequence
+	fretSequences := make(map[InstrumentString][]string)
+	strings := m.chords[0].instrument.strings
+
+	for _, chord := range chords {
+		for _, str := range strings {
+			// Convert Chord position into display value
+			var value string
+			fret, ok := chord.positions[str]
+			if ok {
+				value = fmt.Sprintf("%d", fret)
+			} else {
+				value = "-"
+			}
+
+			fretSequences[str] = append(fretSequences[str], value)
 		}
-		fmt.Println(displayValue)
+	}
+
+	for _, str := range strings {
+		var line string
+		for _, char := range fretSequences[str] {
+			line += char
+		}
+		fmt.Println(line)
 	}
 }
 
 func main() {
+	// Declare instrument and strings
 	guitar := NewInstrument([]string{
 		"e", "B", "G", "D", "A", "E",
 	})
 
+	// Declare chords used in the tab
 	c := NewChord(guitar, map[string]int32{
 		"B": 1,
 		"D": 2,
 		"A": 3,
 	})
 
-	fmt.Println(guitar.strings)
+	// Declare blocks of chords to display together
+	measure := Measure{[]Chord{
+		c, c, c,
+	}}
 
-	printChordAsTab(c)
+	printMeasure(measure)
 }

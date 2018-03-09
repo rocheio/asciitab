@@ -70,27 +70,60 @@ type Measure struct {
 	chords []Chord
 }
 
-// printMeasure writes a multi-column measure to stdout
-func printMeasure(m Measure) {
-	if len(m.chords) == 0 {
-		return
+// Tab is a group of measures to be displayed on a screen
+type Tab struct {
+	measures []Measure
+}
+
+// PrintAll writes the full tablature to stdout
+func (t Tab) PrintAll() {
+	sections := NewTabSection(t.measures[0].chords[0].instrument.strings)
+	for _, m := range t.measures {
+		if len(m.chords) == 0 {
+			continue
+		}
+		sections.Add(m.chords)
 	}
+	t.PrintSection(sections)
+}
+
+// PrintSection writes a single TabSection to stdout
+func (t Tab) PrintSection(s TabSection) {
+	for _, str := range s.strings {
+		var line string
+		for _, char := range s.sequences[str] {
+			line += char
+		}
+		fmt.Println(line)
+	}
+}
+
+// TabSection is a running group of Measures to be printed together.
+// Makes for easier book keeping of a Tab being printed to stdout.
+type TabSection struct {
+	strings   []InstrumentString
+	sequences map[InstrumentString][]string
+}
+
+// NewTabSection returns an empty TabSection to start a new line of a Tab.
+func NewTabSection(strings []InstrumentString) TabSection {
+	sequences := make(map[InstrumentString][]string)
+	return TabSection{strings, sequences}
+}
+
+// Add appends the tablature for a list of chords to the section.
+func (t TabSection) Add(chords []Chord) {
 
 	// Add a blank chord between each chord in the measure
-	blank := BlankChord(m.chords[0].instrument)
-	chords := []Chord{blank}
-	for _, c := range m.chords {
-		chords = append(chords, c)
-		chords = append(chords, blank)
+	blank := BlankChord(chords[0].instrument)
+	columns := []Chord{blank}
+	for _, c := range chords {
+		columns = append(columns, c)
+		columns = append(columns, blank)
 	}
 
-	// Transform list of Chords [E, Am, C#] into a map of
-	// each string to its fret position sequence
-	fretSequences := make(map[InstrumentString][]string)
-	strings := m.chords[0].instrument.strings
-
-	for _, chord := range chords {
-		for _, str := range strings {
+	for _, chord := range columns {
+		for _, str := range t.strings {
 			// Convert Chord position into display value
 			var value string
 			fret, ok := chord.positions[str]
@@ -100,19 +133,12 @@ func printMeasure(m Measure) {
 				value = "-"
 			}
 
-			fretSequences[str] = append(fretSequences[str], value)
+			t.sequences[str] = append(t.sequences[str], value)
 		}
-	}
-
-	for _, str := range strings {
-		var line string
-		for _, char := range fretSequences[str] {
-			line += char
-		}
-		fmt.Println(line)
 	}
 }
 
+// main defines a Tab and prints it to the terminal
 func main() {
 	// Declare instrument and strings
 	guitar := NewInstrument([]string{
@@ -131,5 +157,10 @@ func main() {
 		c, c, c,
 	}}
 
-	printMeasure(measure)
+	// Declare final Tab object to write to the screen
+	tab := Tab{[]Measure{
+		measure, measure, measure,
+	}}
+
+	tab.PrintAll()
 }

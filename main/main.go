@@ -1,6 +1,14 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"math/rand"
+	"time"
+)
+
+func init() {
+	rand.Seed(time.Now().Unix())
+}
 
 // InstrumentString is a physical string on an Instrument.
 type InstrumentString struct {
@@ -77,14 +85,18 @@ type Tab struct {
 
 // PrintAll writes the full tablature to stdout
 func (t Tab) PrintAll() {
-	sections := NewTabSection(t.measures[0].chords[0].instrument.strings)
+	section := NewTabSection(t.measures[0].chords[0].instrument.strings)
+	section.AddBarLine()
+
 	for _, m := range t.measures {
 		if len(m.chords) == 0 {
 			continue
 		}
-		sections.Add(m.chords)
+		section.AddChords(m.chords)
+		section.AddBarLine()
 	}
-	t.PrintSection(sections)
+
+	t.PrintSection(section)
 }
 
 // PrintSection writes a single TabSection to stdout
@@ -99,7 +111,7 @@ func (t Tab) PrintSection(s TabSection) {
 }
 
 // TabSection is a running group of Measures to be printed together.
-// Makes for easier book keeping of a Tab being printed to stdout.
+// Makes for easier bookkeeping of a Tab being printed to stdout.
 type TabSection struct {
 	strings   []InstrumentString
 	sequences map[InstrumentString][]string
@@ -111,8 +123,8 @@ func NewTabSection(strings []InstrumentString) TabSection {
 	return TabSection{strings, sequences}
 }
 
-// Add appends the tablature for a list of chords to the section.
-func (t TabSection) Add(chords []Chord) {
+// AddChords converts chords to tablature and appends to this section.
+func (t TabSection) AddChords(chords []Chord) {
 
 	// Add a blank chord between each chord in the measure
 	blank := BlankChord(chords[0].instrument)
@@ -138,29 +150,49 @@ func (t TabSection) Add(chords []Chord) {
 	}
 }
 
+// AddBarLine appends a vertical line to this section to separate Measures.
+func (t TabSection) AddBarLine() {
+	for _, str := range t.strings {
+		t.sequences[str] = append(t.sequences[str], "|")
+	}
+}
+
+// randomChord returns a Chord with random values (0-4)
+func randomChord(inst Instrument) Chord {
+	positions := make(map[string]int32)
+	for _, s := range inst.strings {
+		// Positions on only ~half the strings
+		if rand.Float64() < 0.5 {
+			continue
+		}
+		positions[s.name] = rand.Int31n(4)
+	}
+	return NewChord(inst, positions)
+}
+
+// randomMeasure returns a Measure with random Chords
+func randomMeasure(inst Instrument) Measure {
+	var chords []Chord
+	for i := 0; i < 4; i++ {
+		chords = append(chords, randomChord(inst))
+	}
+	return Measure{chords}
+}
+
+// randomTab returns a Tab with random Measures
+func randomTab(inst Instrument) Tab {
+	var measures []Measure
+	for i := 0; i < 4; i++ {
+		measures = append(measures, randomMeasure(inst))
+	}
+	return Tab{measures}
+}
+
 // main defines a Tab and prints it to the terminal
 func main() {
-	// Declare instrument and strings
 	guitar := NewInstrument([]string{
 		"e", "B", "G", "D", "A", "E",
 	})
-
-	// Declare chords used in the tab
-	c := NewChord(guitar, map[string]int32{
-		"B": 1,
-		"D": 2,
-		"A": 3,
-	})
-
-	// Declare blocks of chords to display together
-	measure := Measure{[]Chord{
-		c, c, c,
-	}}
-
-	// Declare final Tab object to write to the screen
-	tab := Tab{[]Measure{
-		measure, measure, measure,
-	}}
-
+	tab := randomTab(guitar)
 	tab.PrintAll()
 }

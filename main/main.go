@@ -3,16 +3,52 @@ package main
 import (
 	"fmt"
 	"math/rand"
+	"strings"
 	"time"
 )
 
+var pitchProgression map[string]string
+
 func init() {
 	rand.Seed(time.Now().Unix())
+	pitchProgression = map[string]string{
+		"A":  "A#",
+		"A#": "B",
+		"B":  "C",
+		"C":  "C#",
+		"C#": "D",
+		"D":  "D#",
+		"D#": "E",
+		"E":  "F",
+		"F":  "F#",
+		"F#": "G",
+		"G":  "G#",
+		"G#": "A",
+	}
 }
 
 // InstrumentString is a physical string on an Instrument.
 type InstrumentString struct {
 	name string
+}
+
+// PitchMatches returns True if this string is in a list of pitches
+func PitchMatches(possible string, pitches []string) bool {
+	for _, p := range pitches {
+		if strings.ToUpper(possible) == strings.ToUpper(p) {
+			return true
+		}
+	}
+	return false
+}
+
+// IncreasePitch returns one pitch higher than passed in
+func IncreasePitch(pitch string) string {
+	p, ok := pitchProgression[strings.ToUpper(pitch)]
+	if !ok {
+		return pitch
+	}
+	return p
 }
 
 // Instrument has strings that are played to make music.
@@ -30,6 +66,13 @@ func NewInstrument(stringNames []string) Instrument {
 	return Instrument{
 		strings: strings,
 	}
+}
+
+// NewGuitar returns an Instrument configured as a standard guitar
+func NewGuitar() Instrument {
+	return NewInstrument([]string{
+		"e", "B", "G", "D", "A", "E",
+	})
 }
 
 // GetString returns an instruments string by name (e.g. "A")
@@ -78,17 +121,34 @@ type Measure struct {
 	chords []Chord
 }
 
+// AddChord adds a Chord to the current Measure
+func (m Measure) AddChord(c Chord) {
+	m.chords = append(m.chords, c)
+}
+
 // Tab is a group of measures to be displayed on a screen
 type Tab struct {
-	measures []Measure
+	measures *[]Measure
+}
+
+// NewTab returns a new, empty Tab for building on
+func NewTab() Tab {
+	m := []Measure{}
+	return Tab{&m}
+}
+
+// AddMeasure adds a Measure to the current Tab
+func (t Tab) AddMeasure(m Measure) {
+	*t.measures = append(*t.measures, m)
 }
 
 // PrintAll writes the full tablature to stdout
 func (t Tab) PrintAll() {
-	section := NewTabSection(t.measures[0].chords[0].instrument.strings)
+	measures := *t.measures
+	section := NewTabSection(measures[0].chords[0].instrument.strings)
 	section.AddBarLine()
 
-	for _, m := range t.measures {
+	for _, m := range *t.measures {
 		if len(m.chords) == 0 {
 			continue
 		}
@@ -128,9 +188,10 @@ func (t TabSection) AddChords(chords []Chord) {
 
 	// Add a blank chord between each chord in the measure
 	blank := BlankChord(chords[0].instrument)
-	columns := []Chord{blank}
+	columns := []Chord{blank, blank}
 	for _, c := range chords {
 		columns = append(columns, c)
+		columns = append(columns, blank)
 		columns = append(columns, blank)
 	}
 
@@ -157,6 +218,12 @@ func (t TabSection) AddBarLine() {
 	}
 }
 
+// Scale is a group of Pitches played together in harmony
+// (e.g. Classical: A - G w/ flats and sharps)
+type Scale struct {
+	pitches []string
+}
+
 // randomChord returns a Chord with random values (0-4)
 func randomChord(inst Instrument) Chord {
 	positions := make(map[string]int32)
@@ -170,29 +237,44 @@ func randomChord(inst Instrument) Chord {
 	return NewChord(inst, positions)
 }
 
-// randomMeasure returns a Measure with random Chords
-func randomMeasure(inst Instrument) Measure {
-	var chords []Chord
-	for i := 0; i < 4; i++ {
-		chords = append(chords, randomChord(inst))
+// randomChordInScale returns a Chord in the given Scale
+func randomChordInScale(inst Instrument, scale Scale) Chord {
+	positions := make(map[string]int32)
+	for _, str := range inst.strings {
+		// find possible positions
+		var possibles []int
+		pitch := str.name
+		for i := 0; i <= 3; i++ {
+			if PitchMatches(pitch, scale.pitches) {
+				possibles = append(possibles, i)
+			}
+			pitch = IncreasePitch(pitch)
+		}
+		// half chance to use each string
+		if rand.Float64() > 0.5 {
+			// equal chance to use each possible fret in scale
+			fret := possibles[rand.Intn(len(possibles))]
+			positions[str.name] = int32(fret)
+		}
 	}
-	return Measure{chords}
-}
-
-// randomTab returns a Tab with random Measures
-func randomTab(inst Instrument) Tab {
-	var measures []Measure
-	for i := 0; i < 4; i++ {
-		measures = append(measures, randomMeasure(inst))
-	}
-	return Tab{measures}
+	return NewChord(inst, positions)
 }
 
 // main defines a Tab and prints it to the terminal
 func main() {
-	guitar := NewInstrument([]string{
-		"e", "B", "G", "D", "A", "E",
-	})
-	tab := randomTab(guitar)
+	guitar := NewGuitar()
+	aMinor := Scale{[]string{
+		"A", "B", "C", "D", "E", "F", "G",
+	}}
+	tab := NewTab()
+	for i := 0; i < 4; i++ {
+		var chords []Chord
+		for i := 0; i < 4; i++ {
+			c := randomChordInScale(guitar, aMinor)
+			chords = append(chords, c)
+		}
+		measure := Measure{chords}
+		tab.AddMeasure(measure)
+	}
 	tab.PrintAll()
 }

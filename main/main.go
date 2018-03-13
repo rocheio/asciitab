@@ -7,7 +7,11 @@ import (
 	"time"
 )
 
-var pitchProgression map[string]string
+var (
+	pitchProgression map[string]string
+	minorSteps       []int
+	majorSteps       []int
+)
 
 func init() {
 	rand.Seed(time.Now().Unix())
@@ -24,6 +28,12 @@ func init() {
 		"F#": "G",
 		"G":  "G#",
 		"G#": "A",
+	}
+	minorSteps = []int{
+		2, 1, 2, 2, 1, 2, 2,
+	}
+	majorSteps = []int{
+		2, 2, 1, 2, 2, 2, 1,
 	}
 }
 
@@ -221,7 +231,14 @@ func (t TabSection) AddBarLine() {
 // Scale is a group of Pitches played together in harmony
 // (e.g. Classical: A - G w/ flats and sharps)
 type Scale struct {
+	name    string
+	root    string
 	pitches []string
+}
+
+// String returns a string version of this Scale
+func (s Scale) String() string {
+	return fmt.Sprintf("<%s %s %s>", s.root, s.name, s.pitches)
 }
 
 // randomChord returns a Chord with random values (0-4)
@@ -244,14 +261,14 @@ func randomChordInScale(inst Instrument, scale Scale) Chord {
 		// find possible positions
 		var possibles []int
 		pitch := str.name
-		for i := 0; i <= 3; i++ {
+		for i := 0; i <= 4; i++ {
 			if PitchMatches(pitch, scale.pitches) {
 				possibles = append(possibles, i)
 			}
 			pitch = IncreasePitch(pitch)
 		}
 		// half chance to use each string
-		if rand.Float64() > 0.5 {
+		if rand.Float64() > 0.7 {
 			// equal chance to use each possible fret in scale
 			fret := possibles[rand.Intn(len(possibles))]
 			positions[str.name] = int32(fret)
@@ -260,17 +277,62 @@ func randomChordInScale(inst Instrument, scale Scale) Chord {
 	return NewChord(inst, positions)
 }
 
+// NewScale returns a Scale for a root note and minor or major step pattern.
+func NewScale(name, root string, steps []int) Scale {
+	// start with the root note
+	pitch := root
+	pitches := []string{}
+	for _, step := range steps {
+		pitches = append(pitches, pitch)
+		// step up notes according to pattern
+		for i := 0; i < step; i++ {
+			pitch = pitchProgression[pitch]
+		}
+	}
+	return Scale{name, root, pitches}
+}
+
+// RandomNote returns a random root note for scale progression
+func RandomNote() string {
+	keys := make([]string, len(pitchProgression))
+	i := 0
+	for k := range pitchProgression {
+		keys[i] = k
+		i++
+	}
+	return keys[rand.Intn(len(pitchProgression))]
+}
+
+// RandomSteps returns a random scale progression (major or minor)
+func RandomSteps() []int {
+	if rand.Float64() > 0.5 {
+		return minorSteps
+	}
+	return majorSteps
+}
+
 // main defines a Tab and prints it to the terminal
 func main() {
 	guitar := NewGuitar()
-	aMinor := Scale{[]string{
-		"A", "B", "C", "D", "E", "F", "G",
-	}}
+	// Use a random note and 50% chance of major vs. minor
+	scaleNote := RandomNote()
+	name := "minor"
+	if rand.Float64() > 0.5 {
+		name = "major"
+	}
+	scaleSteps := map[string][]int{
+		"minor": minorSteps,
+		"major": majorSteps,
+	}
+	scale := NewScale(name, scaleNote, scaleSteps[name])
+	fmt.Printf("Writing tab using scale %s\n", scale)
+
+	// build a new tab using random chords in the scale
 	tab := NewTab()
 	for i := 0; i < 4; i++ {
 		var chords []Chord
 		for i := 0; i < 4; i++ {
-			c := randomChordInScale(guitar, aMinor)
+			c := randomChordInScale(guitar, scale)
 			chords = append(chords, c)
 		}
 		measure := Measure{chords}

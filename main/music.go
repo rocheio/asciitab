@@ -1,3 +1,4 @@
+// music defines the foundational structure of music used in tabs
 package main
 
 import (
@@ -9,31 +10,37 @@ import (
 
 var (
 	pitchProgression map[string]string
-	minorSteps       []int
-	majorSteps       []int
+	scaleSteps       map[string][]int
 )
 
 func init() {
 	rand.Seed(time.Now().Unix())
 	pitchProgression = map[string]string{
+		"Ab": "A",
 		"A":  "A#",
 		"A#": "B",
+		"Bb": "B",
 		"B":  "C",
 		"C":  "C#",
 		"C#": "D",
+		"Db": "D",
 		"D":  "D#",
 		"D#": "E",
+		"Eb": "E",
 		"E":  "F",
 		"F":  "F#",
 		"F#": "G",
+		"Gb": "G",
 		"G":  "G#",
 		"G#": "A",
 	}
-	minorSteps = []int{
-		2, 1, 2, 2, 1, 2, 2,
-	}
-	majorSteps = []int{
-		2, 2, 1, 2, 2, 2, 1,
+	scaleSteps = map[string][]int{
+		"minor": []int{
+			2, 1, 2, 2, 1, 2, 2,
+		},
+		"major": []int{
+			2, 2, 1, 2, 2, 2, 1,
+		},
 	}
 }
 
@@ -278,18 +285,34 @@ func randomChordInScale(inst Instrument, scale Scale) Chord {
 }
 
 // NewScale returns a Scale for a root note and minor or major step pattern.
-func NewScale(name, root string, steps []int) Scale {
+func NewScale(name, root string) (Scale, error) {
 	// start with the root note
 	pitch := root
 	pitches := []string{}
+	steps, ok := scaleSteps[name]
+	if !ok {
+		return NilScale(), fmt.Errorf("scale not found: %s", name)
+	}
+
 	for _, step := range steps {
 		pitches = append(pitches, pitch)
 		// step up notes according to pattern
 		for i := 0; i < step; i++ {
-			pitch = pitchProgression[pitch]
+			oldpitch := pitch
+			pitch, ok = pitchProgression[pitch]
+			if !ok {
+				return NilScale(), fmt.Errorf(
+					"progression not found for pitch: %s", oldpitch,
+				)
+			}
 		}
 	}
-	return Scale{name, root, pitches}
+	return Scale{name, root, pitches}, nil
+}
+
+// NilScale returns a Scale for returning with errors
+func NilScale() Scale {
+	return Scale{"", "", nil}
 }
 
 // RandomNote returns a random root note for scale progression
@@ -303,40 +326,38 @@ func RandomNote() string {
 	return keys[rand.Intn(len(pitchProgression))]
 }
 
-// RandomSteps returns a random scale progression (major or minor)
-func RandomSteps() []int {
+// RandomScaleName returns the name of a random scale
+func RandomScaleName() string {
 	if rand.Float64() > 0.5 {
-		return minorSteps
+		return "major"
 	}
-	return majorSteps
+	return "minor"
 }
 
-// main defines a Tab and prints it to the terminal
-func main() {
-	guitar := NewGuitar()
-	// Use a random note and 50% chance of major vs. minor
-	scaleNote := RandomNote()
-	name := "minor"
-	if rand.Float64() > 0.5 {
-		name = "major"
+// RandomScale returns a major or minor scale with a random root note.
+func RandomScale() Scale {
+	name := RandomScaleName()
+	note := RandomNote()
+	scale, err := NewScale(name, note)
+	if err != nil {
+		panic(err)
 	}
-	scaleSteps := map[string][]int{
-		"minor": minorSteps,
-		"major": majorSteps,
-	}
-	scale := NewScale(name, scaleNote, scaleSteps[name])
-	fmt.Printf("Writing tab using scale %s\n", scale)
+	return scale
+}
 
+// RandomTab defines a Tab and prints it to the terminal
+func RandomTab(inst Instrument, scale Scale) Tab {
 	// build a new tab using random chords in the scale
 	tab := NewTab()
 	for i := 0; i < 4; i++ {
 		var chords []Chord
 		for i := 0; i < 4; i++ {
-			c := randomChordInScale(guitar, scale)
+			c := randomChordInScale(inst, scale)
 			chords = append(chords, c)
 		}
 		measure := Measure{chords}
 		tab.AddMeasure(measure)
 	}
-	tab.PrintAll()
+
+	return tab
 }

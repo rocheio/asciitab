@@ -163,14 +163,15 @@ func (t Tab) AddMeasure(m Measure) {
 func (t Tab) PrintAll() {
 	measures := *t.measures
 	section := NewTabSection(measures[0].chords[0].instrument.strings)
-	section.AddBarLine()
+	section.AddStringNames()
+	section.AddBar()
 
 	for _, m := range *t.measures {
 		if len(m.chords) == 0 {
 			continue
 		}
 		section.AddChords(m.chords)
-		section.AddBarLine()
+		section.AddBar()
 	}
 
 	t.PrintSection(section)
@@ -228,10 +229,17 @@ func (t TabSection) AddChords(chords []Chord) {
 	}
 }
 
-// AddBarLine appends a vertical line to this section to separate Measures.
-func (t TabSection) AddBarLine() {
+// AddBar appends a vertical line to this section to separate Measures.
+func (t TabSection) AddBar() {
 	for _, str := range t.strings {
 		t.sequences[str] = append(t.sequences[str], "|")
+	}
+}
+
+// AddStringNames appends the names of each string to start each section.
+func (t TabSection) AddStringNames() {
+	for _, str := range t.strings {
+		t.sequences[str] = append(t.sequences[str], str.name)
 	}
 }
 

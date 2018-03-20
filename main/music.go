@@ -434,12 +434,19 @@ func ScaleTab(inst Instrument, scale Scale) Tab {
 		scaleStrings = inst.strings
 	}
 
+	// Find root note fret to start on
+	rootFret := scaleStrings[0].indexOf(scale.root)
+
 	// Add all frets on all strings in order
 	for j := 0; j < len(scaleStrings); j++ {
 		var chords []Chord
 
 		str := scaleStrings[j]
 		for _, fret := range str.FretsInScale(scale) {
+			// Only use frets up to 4 after rootFret
+			if fret < rootFret || fret > rootFret+4 {
+				continue
+			}
 			c := singleNoteChord(inst, str.name, fret)
 			chords = append(chords, c)
 		}

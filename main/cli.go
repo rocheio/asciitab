@@ -67,7 +67,6 @@ func main() {
 	// asciitab random --key=A#
 	if len(os.Args) >= 2 && os.Args[1] == "random" {
 		tab := RandomTab(guitar, scale)
-
 		fmt.Printf("Random tab in %s\n", scale)
 		tab.PrintAll()
 		return
@@ -76,7 +75,6 @@ func main() {
 	// asciitab scale --key=B
 	if len(os.Args) >= 2 && os.Args[1] == "scale" {
 		tab := ScaleTab(guitar, scale)
-
 		fmt.Printf("Basic scale in %s\n", scale)
 		tab.PrintAll()
 		return

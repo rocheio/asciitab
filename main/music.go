@@ -129,7 +129,7 @@ func NewInstrument(stringNames []string) Instrument {
 // NewGuitar returns an Instrument configured as a standard guitar
 func NewGuitar() Instrument {
 	return NewInstrument([]string{
-		"e", "B", "G", "D", "A", "E",
+		"E", "A", "D", "G", "B", "e",
 	})
 }
 
@@ -218,9 +218,11 @@ func (t Tab) PrintAll() {
 	t.PrintSection(section)
 }
 
-// PrintSection writes a single TabSection to stdout
+// PrintSection writes a single TabSection to stdout.
+// Prints in reverse order of strings (top-to-bottom).
 func (t Tab) PrintSection(s TabSection) {
-	for _, str := range s.strings {
+	for i := len(s.strings) - 1; i >= 0; i-- {
+		str := s.strings[i]
 		var line string
 		for _, char := range s.sequences[str] {
 			line += char
@@ -425,15 +427,15 @@ func ScaleTab(inst Instrument, scale Scale) Tab {
 	tab := NewTab()
 
 	// Start on bottom string if <= 6 frets, second-to-bottom otherwise
-	bassString := inst.strings[len(inst.strings)-1]
+	bassString := inst.strings[0]
 	if bassString.indexOf(scale.root) == -1 || bassString.indexOf(scale.root) > 6 {
-		scaleStrings = inst.strings[:len(inst.strings)-1]
+		scaleStrings = inst.strings[1:]
 	} else {
 		scaleStrings = inst.strings
 	}
 
 	// Add all frets on all strings in order
-	for j := len(scaleStrings) - 1; j >= 0; j-- {
+	for j := 0; j < len(scaleStrings); j++ {
 		var chords []Chord
 
 		str := scaleStrings[j]

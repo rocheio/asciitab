@@ -44,9 +44,50 @@ func init() {
 	}
 }
 
+func stringInSlice(a string, list []string) bool {
+	for _, b := range list {
+		if b == a {
+			return true
+		}
+	}
+	return false
+}
+
 // InstrumentString is a physical string on an Instrument.
 type InstrumentString struct {
 	name string
+}
+
+// FretsInScale returns a list of frets in a given scale.
+func (str InstrumentString) FretsInScale(scale Scale) []int {
+	var frets []int
+
+	fret := 0
+	pitch := str.name
+	for {
+		if fret == 10 {
+			break
+		}
+		if stringInSlice(pitch, scale.pitches) {
+			frets = append(frets, fret)
+		}
+		pitch = pitchProgression[strings.ToUpper(pitch)]
+		fret++
+	}
+
+	return frets
+}
+
+// indexOf returns the first fret where a pitch occurs on this string.
+func (str InstrumentString) indexOf(targetPitch string) int {
+	pitch := str.name
+	for i := 0; i < 24; i++ {
+		if pitch == targetPitch {
+			return i
+		}
+		pitch = pitchProgression[strings.ToUpper(pitch)]
+	}
+	return -1
 }
 
 // PitchMatches returns True if this string is in a list of pitches
@@ -106,12 +147,12 @@ func (i Instrument) GetString(name string) (InstrumentString, error) {
 // Chord is a fixed position on the frets of an Instrument
 type Chord struct {
 	instrument Instrument
-	positions  map[InstrumentString]int32
+	positions  map[InstrumentString]int
 }
 
 // NewChord returns a Chord from a map of strings to positions
-func NewChord(i Instrument, namesToPositions map[string]int32) Chord {
-	strPositions := make(map[InstrumentString]int32)
+func NewChord(i Instrument, namesToPositions map[string]int) Chord {
+	strPositions := make(map[InstrumentString]int)
 	for name, position := range namesToPositions {
 		str, err := i.GetString(name)
 		if err != nil {
@@ -130,7 +171,7 @@ func NewChord(i Instrument, namesToPositions map[string]int32) Chord {
 
 // BlankChord returns a Chord with no positions, representing a pause
 func BlankChord(i Instrument) Chord {
-	return NewChord(i, map[string]int32{})
+	return NewChord(i, map[string]int{})
 }
 
 // Measure is a series of Chords that should be displayed together
@@ -258,20 +299,20 @@ func (s Scale) String() string {
 
 // randomChord returns a Chord with random values (0-4)
 func randomChord(inst Instrument) Chord {
-	positions := make(map[string]int32)
+	positions := make(map[string]int)
 	for _, s := range inst.strings {
 		// Positions on only ~half the strings
 		if rand.Float64() < 0.5 {
 			continue
 		}
-		positions[s.name] = rand.Int31n(4)
+		positions[s.name] = rand.Intn(4)
 	}
 	return NewChord(inst, positions)
 }
 
 // randomChordInScale returns a Chord in the given Scale
 func randomChordInScale(inst Instrument, scale Scale) Chord {
-	positions := make(map[string]int32)
+	positions := make(map[string]int)
 	for _, str := range inst.strings {
 		// find possible positions
 		var possibles []int
@@ -286,8 +327,16 @@ func randomChordInScale(inst Instrument, scale Scale) Chord {
 		if rand.Float64() > 0.7 {
 			// equal chance to use each possible fret in scale
 			fret := possibles[rand.Intn(len(possibles))]
-			positions[str.name] = int32(fret)
+			positions[str.name] = int(fret)
 		}
+	}
+	return NewChord(inst, positions)
+}
+
+// singleNoteChord returns a 'chord' with just a single note
+func singleNoteChord(inst Instrument, str string, fret int) Chord {
+	positions := map[string]int{
+		str: fret,
 	}
 	return NewChord(inst, positions)
 }
@@ -353,7 +402,7 @@ func RandomScale() Scale {
 	return scale
 }
 
-// RandomTab defines a Tab and prints it to the terminal
+// RandomTab returns a Tab with random notes from a Scale
 func RandomTab(inst Instrument, scale Scale) Tab {
 	// build a new tab using random chords in the scale
 	tab := NewTab()
@@ -363,6 +412,36 @@ func RandomTab(inst Instrument, scale Scale) Tab {
 			c := randomChordInScale(inst, scale)
 			chords = append(chords, c)
 		}
+		measure := Measure{chords}
+		tab.AddMeasure(measure)
+	}
+
+	return tab
+}
+
+// ScaleTab returns a Tab of all notes up and down the scale
+func ScaleTab(inst Instrument, scale Scale) Tab {
+	var scaleStrings []InstrumentString
+	tab := NewTab()
+
+	// Start on bottom string if <= 6 frets, second-to-bottom otherwise
+	bassString := inst.strings[len(inst.strings)-1]
+	if bassString.indexOf(scale.root) == -1 || bassString.indexOf(scale.root) > 6 {
+		scaleStrings = inst.strings[:len(inst.strings)-1]
+	} else {
+		scaleStrings = inst.strings
+	}
+
+	// Add all frets on all strings in order
+	for j := len(scaleStrings) - 1; j >= 0; j-- {
+		var chords []Chord
+
+		str := scaleStrings[j]
+		for _, fret := range str.FretsInScale(scale) {
+			c := singleNoteChord(inst, str.name, fret)
+			chords = append(chords, c)
+		}
+
 		measure := Measure{chords}
 		tab.AddMeasure(measure)
 	}

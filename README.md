@@ -9,7 +9,7 @@ Tablature parser and generator.
 go build -o ./asciitab ./main
 ```
 
-### Create a Random Guitar Tab
+### Create some tabs
 
 ```bash
 ./asciitab random
@@ -35,4 +35,8 @@ G|--1-----------|--------------|-----1--3-----|-----------3--|
 D|-----1-----1--|-----3--4-----|-----3--------|--4--4--------|
 A|--3-----------|-----------4--|--------------|--1-----------|
 E|-----1--------|--------------|--------------|--1--4--------|
+```
+
+```bash
+./asciitab scale --key=B --scale=minor
 ```

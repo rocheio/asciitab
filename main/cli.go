@@ -19,11 +19,8 @@ Create ASCII tabs for guitar for use in practice or inspiration.
 	`
 }
 
-func main() {
-	// all tabs are for guitar currently
-	guitar := NewGuitar()
-
-	// parse "--abc=123" flags from command line
+// parseFlags returns a map of "--key=value" args from the input.
+func parseFlags() map[string]string {
 	flags := make(map[string]string)
 	for _, arg := range os.Args {
 		// all accepted flags currently start with "--"
@@ -40,26 +37,47 @@ func main() {
 		value := strings.Trim(arg[equalsIndex+1:], `'"`)
 		flags[arg[2:equalsIndex]] = value
 	}
+	return flags
+}
+
+func main() {
+	// parse "--abc=123" flags from command line
+	flags := parseFlags()
+
+	// key provided or random key?
+	key, ok := flags["key"]
+	if !ok {
+		key = RandomNote()
+	}
+
+	// scale name provided or random scale?
+	scaleName, ok := flags["scale"]
+	if !ok {
+		scaleName = RandomScaleName()
+	}
+
+	scale, err := NewScale(scaleName, key)
+	if err != nil {
+		panic(err)
+	}
+
+	// all tabs are for guitar currently
+	guitar := NewGuitar()
 
 	// asciitab random --key=A#
 	if len(os.Args) >= 2 && os.Args[1] == "random" {
-		// key provided or random key?
-		key, ok := flags["key"]
-		if !ok {
-			key = RandomNote()
-		}
-		// scale provided or random scale?
-		scaleName, ok := flags["scale"]
-		if !ok {
-			scaleName = RandomScaleName()
-		}
-		scale, err := NewScale(scaleName, key)
-		if err != nil {
-			panic(err)
-		}
 		tab := RandomTab(guitar, scale)
 
 		fmt.Printf("Random tab in %s\n", scale)
+		tab.PrintAll()
+		return
+	}
+
+	// asciitab scale --key=B
+	if len(os.Args) >= 2 && os.Args[1] == "scale" {
+		tab := ScaleTab(guitar, scale)
+
+		fmt.Printf("Basic scale in %s\n", scale)
 		tab.PrintAll()
 		return
 	}

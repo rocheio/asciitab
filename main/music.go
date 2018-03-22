@@ -133,6 +133,13 @@ func NewGuitar() Instrument {
 	})
 }
 
+// NewUkulele returns an Instrument configured as a standard ukulele
+func NewUkulele() Instrument {
+	return NewInstrument([]string{
+		"G", "C", "E", "A",
+	})
+}
+
 // GetString returns an instruments string by name (e.g. "A")
 func (i Instrument) GetString(name string) (InstrumentString, error) {
 	for _, s := range i.strings {

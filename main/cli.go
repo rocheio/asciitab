@@ -15,7 +15,7 @@ func init() {
 	helptext = `
 usage: asciitab random [--key="key"]
 
-Create ASCII tabs for guitar for use in practice or inspiration.
+Create ASCII tabs for guitar and ukulele for use in practice or inspiration.
 	`
 }
 
@@ -61,12 +61,18 @@ func main() {
 		panic(err)
 	}
 
-	// all tabs are for guitar currently
-	guitar := NewGuitar()
+	// guitar or ukulele?
+	var instrument Instrument
+	instName, ok := flags["instrument"]
+	if ok && instName == "ukulele" {
+		instrument = NewUkulele()
+	} else {
+		instrument = NewGuitar()
+	}
 
 	// asciitab random --key=A#
 	if len(os.Args) >= 2 && os.Args[1] == "random" {
-		tab := RandomTab(guitar, scale)
+		tab := RandomTab(instrument, scale)
 		fmt.Printf("Random tab in %s\n", scale)
 		tab.PrintAll()
 		return
@@ -74,7 +80,7 @@ func main() {
 
 	// asciitab scale --key=B
 	if len(os.Args) >= 2 && os.Args[1] == "scale" {
-		tab := ScaleTab(guitar, scale)
+		tab := ScaleTab(instrument, scale)
 		fmt.Printf("Basic scale in %s\n", scale)
 		tab.PrintAll()
 		return

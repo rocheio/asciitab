@@ -102,9 +102,13 @@ func PitchMatches(possible string, pitches []string) bool {
 
 // increasePitch returns one pitch higher than passed in
 func increasePitch(pitch string) string {
-	p, ok := pitchProgression[strings.ToUpper(pitch)]
+	clean := strings.ToUpper(pitch)
+	if len(clean) > 1 && string(clean[len(clean)-1]) == "B" {
+		clean = clean[:len(clean)-1] + "b"
+	}
+	p, ok := pitchProgression[clean]
 	if !ok {
-		panic(fmt.Errorf("pitch not found for %s", pitch))
+		panic(fmt.Errorf("pitch not found for %s", clean))
 	}
 	return p
 }

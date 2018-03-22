@@ -71,7 +71,7 @@ func (str InstrumentString) FretsInScale(scale Scale) []int {
 		if stringInSlice(pitch, scale.pitches) {
 			frets = append(frets, fret)
 		}
-		pitch = pitchProgression[strings.ToUpper(pitch)]
+		pitch = increasePitch(pitch)
 		fret++
 	}
 
@@ -85,7 +85,7 @@ func (str InstrumentString) indexOf(targetPitch string) int {
 		if pitch == targetPitch {
 			return i
 		}
-		pitch = pitchProgression[strings.ToUpper(pitch)]
+		pitch = increasePitch(pitch)
 	}
 	return -1
 }
@@ -100,11 +100,11 @@ func PitchMatches(possible string, pitches []string) bool {
 	return false
 }
 
-// IncreasePitch returns one pitch higher than passed in
-func IncreasePitch(pitch string) string {
+// increasePitch returns one pitch higher than passed in
+func increasePitch(pitch string) string {
 	p, ok := pitchProgression[strings.ToUpper(pitch)]
 	if !ok {
-		return pitch
+		panic(fmt.Errorf("pitch not found for %s", pitch))
 	}
 	return p
 }
@@ -184,10 +184,7 @@ func (c Chord) RootNote() string {
 		// find pitch from step progression
 		pitch := str.name
 		for i := 0; i < pos; i++ {
-			pitch, ok = pitchProgression[strings.ToUpper(pitch)]
-			if !ok {
-				return ""
-			}
+			pitch = increasePitch(pitch)
 		}
 		return pitch
 	}
@@ -343,7 +340,7 @@ func randomChordInScale(inst Instrument, scale Scale) Chord {
 			if PitchMatches(pitch, scale.pitches) {
 				possibles = append(possibles, i)
 			}
-			pitch = IncreasePitch(pitch)
+			pitch = increasePitch(pitch)
 		}
 		// half chance to use each string
 		if rand.Float64() > 0.7 {
@@ -377,13 +374,7 @@ func NewScale(name, root string) (Scale, error) {
 		pitches = append(pitches, pitch)
 		// step up notes according to pattern
 		for i := 0; i < step; i++ {
-			oldpitch := pitch
-			pitch, ok = pitchProgression[pitch]
-			if !ok {
-				return NilScale(), fmt.Errorf(
-					"progression not found for pitch: %s", oldpitch,
-				)
-			}
+			pitch = increasePitch(pitch)
 		}
 	}
 	return Scale{name, root, pitches}, nil

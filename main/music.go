@@ -174,6 +174,26 @@ func BlankChord(i Instrument) Chord {
 	return NewChord(i, map[string]int{})
 }
 
+// RootNote returns the primary pitch of this Chord
+func (c Chord) RootNote() string {
+	for _, str := range c.instrument.strings {
+		pos, ok := c.positions[str]
+		if !ok {
+			continue
+		}
+		// find pitch from step progression
+		pitch := str.name
+		for i := 0; i < pos; i++ {
+			pitch, ok = pitchProgression[strings.ToUpper(pitch)]
+			if !ok {
+				return ""
+			}
+		}
+		return pitch
+	}
+	return ""
+}
+
 // Measure is a series of Chords that should be displayed together
 type Measure struct {
 	chords []Chord
@@ -438,9 +458,8 @@ func ScaleTab(inst Instrument, scale Scale) Tab {
 	rootFret := scaleStrings[0].indexOf(scale.root)
 
 	// Add all frets on all strings in order
+	var chords []Chord
 	for j := 0; j < len(scaleStrings); j++ {
-		var chords []Chord
-
 		str := scaleStrings[j]
 		for _, fret := range str.FretsInScale(scale) {
 			// Only use frets up to 4 after rootFret
@@ -448,12 +467,17 @@ func ScaleTab(inst Instrument, scale Scale) Tab {
 				continue
 			}
 			c := singleNoteChord(inst, str.name, fret)
+
+			// Don't duplicate notes in a basic scale
+			if len(chords) > 0 && c.RootNote() == chords[len(chords)-1].RootNote() {
+				continue
+			}
 			chords = append(chords, c)
 		}
-
-		measure := Measure{chords}
-		tab.AddMeasure(measure)
 	}
+
+	measure := Measure{chords}
+	tab.AddMeasure(measure)
 
 	return tab
 }
